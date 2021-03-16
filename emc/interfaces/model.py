@@ -15,7 +15,7 @@ class SignalPredictionInputSpec(BaseInterfaceInputSpec):
     aligned_dwi_files = InputMultiObject(File(exists=True), mandatory=True)
     aligned_vectors = File(exists=True, mandatory=True)
     b0_mask = File(exists=True, mandatory=True)
-    b0_median = File(exists=True, mandatory=True)
+    b0_reference = File(exists=True, mandatory=True)
     bvec_to_predict = traits.Array()
     bval_to_predict = traits.Float()
     minimal_q_distance = traits.Float(2.0, usedefault=True)
@@ -79,7 +79,7 @@ class SignalPrediction(SimpleInterface):
             self.inputs.minimal_q_distance
         )
         training_indices = np.flatnonzero(training_mask[1:])
-        training_image_paths = [self.inputs.b0_median] + [
+        training_image_paths = [self.inputs.b0_reference] + [
             all_images[idx] for idx in training_indices
         ]
         training_bvecs = all_bvecs[training_mask]
@@ -134,7 +134,7 @@ class SignalPrediction(SimpleInterface):
                               tol=10e-10,
                               iso_params=None)
             pred_kwargs = dict(
-                S0=np.array(nb.load(self.inputs.b0_median).dataobj))
+                S0=np.array(nb.load(self.inputs.b0_reference).dataobj))
         elif self.inputs.model_name == "tensor":
             t1 = time.time()
             estimator = TensorModel(training_gtab)

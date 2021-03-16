@@ -168,7 +168,7 @@ class CalculateCNR(SimpleInterface):
 
 class ReorderOutputsInputSpec(BaseInterfaceInputSpec):
     b0_indices = traits.List(mandatory=True)
-    b0_median = File(exists=True, mandatory=True)
+    b0_reference = File(exists=True, mandatory=True)
     warped_b0_images = InputMultiObject(File(exists=True), mandatory=True)
     warped_dwi_images = InputMultiObject(File(exists=True), mandatory=True)
     initial_transforms = InputMultiObject(File(exists=True), mandatory=True)
@@ -203,7 +203,7 @@ class ReorderOutputs(SimpleInterface):
 
         for imagenum in range(num_dwis):
             if imagenum in self.inputs.b0_indices:
-                full_predicted_dwi_series.append(self.inputs.b0_median)
+                full_predicted_dwi_series.append(self.inputs.b0_reference)
                 full_transforms.append(b0_transforms.pop())
                 full_warped_images.append(warped_b0_images.pop())
             else:

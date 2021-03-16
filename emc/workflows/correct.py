@@ -243,7 +243,7 @@ def init_emc_model_iteration_wf(
                 "original_rasb_file",
                 "aligned_dwi_files",
                 "aligned_vectors",
-                "b0_median",
+                "b0_reference",
                 "b0_mask",
                 "b0_indices",
             ]
@@ -307,7 +307,7 @@ def init_emc_model_iteration_wf(
                     ("aligned_dwi_files", "aligned_dwi_files"),
                     ("aligned_vectors", "aligned_vectors"),
                     ("b0_indices", "b0_indices"),
-                    ("b0_median", "b0_median"),
+                    ("b0_reference", "b0_reference"),
                     ("b0_mask", "b0_mask"),
                     (("aligned_vectors", _rasb_to_bvec_list),
                      "bvec_to_predict"),
@@ -330,7 +330,7 @@ def init_emc_model_iteration_wf(
             (
                 emc_model_iteration_inputnode,
                 calculate_motion,
-                [("original_dwi_files", "source_files"), ("b0_median",
+                [("original_dwi_files", "source_files"), ("b0_reference",
                                                           "ref_file")],
             ),
             (
@@ -346,7 +346,7 @@ def init_emc_model_iteration_wf(
             (
                 emc_model_iteration_inputnode,
                 post_vector_transforms,
-                [("aligned_vectors", "rasb_file"), ("b0_median", "dwi_file")],
+                [("aligned_vectors", "rasb_file"), ("b0_reference", "dwi_file")],
             ),
             (
                 predict_dwis,
@@ -384,7 +384,7 @@ def init_dwi_model_emc_wf(num_iters=1, name="dwi_model_emc_wf"):
                 "b0_indices",
                 "initial_transforms",
                 "aligned_vectors",
-                "b0_median",
+                "b0_reference",
                 "b0_mask",
                 "warped_b0_images",
             ]
@@ -431,7 +431,7 @@ def init_dwi_model_emc_wf(num_iters=1, name="dwi_model_emc_wf"):
                         "original_rasb_file",
                         "emc_model_iteration_inputnode.original_rasb_file",
                     ),
-                    ("b0_median", "emc_model_iteration_inputnode.b0_median"),
+                    ("b0_reference", "emc_model_iteration_inputnode.b0_reference"),
                     ("b0_mask", "emc_model_iteration_inputnode.b0_mask"),
                     ("b0_indices", "emc_model_iteration_inputnode.b0_indices"),
                     (
@@ -497,8 +497,8 @@ def init_dwi_model_emc_wf(num_iters=1, name="dwi_model_emc_wf"):
                             "original_rasb_file",
                             "emc_model_iteration_inputnode.original_rasb_file",
                         ),
-                        ("b0_median",
-                         "emc_model_iteration_inputnode.b0_median"),
+                        ("b0_reference",
+                         "emc_model_iteration_inputnode.b0_reference"),
                     ],
                 ),
                 (
@@ -565,7 +565,7 @@ def init_dwi_model_emc_wf(num_iters=1, name="dwi_model_emc_wf"):
                 inputnode,
                 reorder_dwi_xforms,
                 [
-                    ("b0_median", "b0_median"),
+                    ("b0_reference", "b0_reference"),
                     ("warped_b0_images", "warped_b0_images"),
                     ("b0_indices", "b0_indices"),
                     ("initial_transforms", "initial_transforms"),
@@ -633,6 +633,9 @@ def init_emc_wf(name):
 
     # Extract B0s
     extract_b0s_node = pe.Node(ExtractB0(), name="extract_b0_node")
+
+    # Mask B0 template
+    mask_reference = pe.Node(ApplyMask(), name="mask_reference_b0_node")
 
     # Split B0s into separate images
     split_b0s_node = pe.Node(
@@ -706,9 +709,6 @@ def init_emc_wf(name):
     b0_based_vector_transforms = pe.Node(
         ReorientVectors(), name="b0_based_vector_transforms"
     )
-
-    # Grab the median of the aligned B0 images
-    b0_median = pe.Node(RescaleB0(), name="b0_median")
 
     # Do model-based motion correction
     dwi_model_emc_wf = init_dwi_model_emc_wf(num_iters=2)
@@ -829,11 +829,10 @@ def init_emc_wf(name):
                 merge_b0s_node,
                 [("b0_emc_outputnode.aligned_images", "in_files")],
             ),
-            (merge_b0s_node, b0_median, [("out_file", "in_file")]),
-            (meta_inputnode, b0_median,
-             [("b0_mask", "mask_file")]),
-            (b0_median, b0_based_image_transforms, [("out_ref",
-                                                     "fixed_image")]),
+            (meta_inputnode, mask_reference, [("b0_reference", "in_file"),
+                                              ("b0_mask", "in_mask")]),
+            (mask_reference, b0_based_image_transforms, [("out_file",
+                                                          "fixed_image")]),
 
             # Perform signal prediction from vectors
             (vectors_node, prune_b0s_from_dwis_node, [("b0_ixs", "b0_ixs")]),
@@ -861,9 +860,9 @@ def init_emc_wf(name):
                 [("out_rasb", "dwi_model_emc_inputnode.aligned_vectors")],
             ),
             (
-                b0_median,
+                mask_reference,
                 dwi_model_emc_wf,
-                [("out_ref", "dwi_model_emc_inputnode.b0_median")],
+                [("out_file", "dwi_model_emc_inputnode.b0_reference")],
             ),
             (
                 meta_inputnode,
