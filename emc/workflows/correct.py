@@ -606,7 +606,7 @@ def init_dwi_model_emc_wf(num_iters=1, name="dwi_model_emc_wf"):
     return dwi_model_emc_wf
 
 
-def init_emc_wf(name, mem_gb=3, omp_nthreads=8):
+def init_emc_wf(name):
     import_list = [
         "import warnings",
         'warnings.filterwarnings("ignore")',
@@ -617,23 +617,16 @@ def init_emc_wf(name, mem_gb=3, omp_nthreads=8):
         "import nibabel as nb",
         "from nipype.utils.filemanip import fname_presuffix",
     ]
-    from dmriprep.workflows.dwi.util import init_dwi_reference_wf
     from emc.utils.images import _pass_predicted_outs, mask_4d
-    from emc.interfaces.images import Patch2Self
     from niworkflows.interfaces.nibabel import ApplyMask
 
     emc_wf = pe.Workflow(name=name)
 
     meta_inputnode = pe.Node(
-        niu.IdentityInterface(fields=["dwi_file", "in_bval", "in_bvec"]),
+        niu.IdentityInterface(fields=["dwi_file", "in_bval", "in_bvec",
+                                      "b0_reference", "b0_mask"]),
         name="meta_inputnode",
     )
-
-    patch2self_node = pe.Node(Patch2Self(patch_radius='auto', b0_denoising=True,),
-        name="patch2self_node",
-    )
-    patch2self_node._n_procs = 4
-    patch2self_node._mem_gb = 8
 
     # Instantiate vectors object
     vectors_node = pe.Node(CheckGradientTable(), name="emc_vectors_node")
@@ -698,9 +691,6 @@ def init_emc_wf(name, mem_gb=3, omp_nthreads=8):
     # Order affine transforms to correspond with split dwi files
     match_transforms_node = pe.Node(MatchTransforms(),
                                     name="match_transforms_node")
-
-    # Create a B0 reference
-    dwi_reference_wf = init_dwi_reference_wf(omp_nthreads=4, mem_gb=8)
 
     # Instantiate b0 eddy correction
     b0_emc_wf = init_b0_emc_wf()
@@ -789,27 +779,10 @@ def init_emc_wf(name, mem_gb=3, omp_nthreads=8):
                     ("in_bvec", "in_bvec"),
                 ],
             ),
-            (
-                meta_inputnode,
-                patch2self_node,
-                [("dwi_file", "in_file"), ("in_bval", "bval_file")],
-            ),
-            (patch2self_node, extract_b0s_node, [("out_file", "in_file")]),
+            (meta_inputnode, extract_b0s_node, [("dwi_file", "in_file")]),
             (vectors_node, extract_b0s_node, [("b0_ixs", "b0_ixs")]),
             (extract_b0s_node, split_b0s_node, [("out_file", "in_file")]),
-            (patch2self_node, split_dwis_node, [("out_file", "in_file")]),
-            (
-                patch2self_node,
-                dwi_reference_wf,
-                [("out_file",
-                  "inputnode.dwi_file")],
-            ),
-            (
-                vectors_node,
-                dwi_reference_wf,
-                [("b0_ixs",
-                  "inputnode.b0_ixs")],
-            ),
+            (meta_inputnode, split_dwis_node, [("dwi_file", "in_file")]),
             (split_b0s_node, b0_emc_wf, [("out_files",
                                           "b0_emc_inputnode.b0_images")]),
             (
@@ -827,12 +800,12 @@ def init_emc_wf(name, mem_gb=3, omp_nthreads=8):
             (split_dwis_node, match_transforms_node, [("out_files",
                                                        "dwi_files")]),
             (
-                dwi_reference_wf,
+                meta_inputnode,
                 b0_emc_wf,
-                [("outputnode.ref_image_brain",
+                [("b0_reference",
                   "b0_emc_inputnode.initial_template")],
             ),
-            (patch2self_node, b0_based_vector_transforms, [("out_file",
+            (meta_inputnode, b0_based_vector_transforms, [("dwi_file",
                                                            "dwi_file")]),
             (
                 match_transforms_node,
@@ -857,8 +830,8 @@ def init_emc_wf(name, mem_gb=3, omp_nthreads=8):
                 [("b0_emc_outputnode.aligned_images", "in_files")],
             ),
             (merge_b0s_node, b0_median, [("out_file", "in_file")]),
-            (dwi_reference_wf, b0_median,
-             [("outputnode.dwi_mask", "mask_file")]),
+            (meta_inputnode, b0_median,
+             [("b0_mask", "mask_file")]),
             (b0_median, b0_based_image_transforms, [("out_ref",
                                                      "fixed_image")]),
 
@@ -893,9 +866,9 @@ def init_emc_wf(name, mem_gb=3, omp_nthreads=8):
                 [("out_ref", "dwi_model_emc_inputnode.b0_median")],
             ),
             (
-                dwi_reference_wf,
+                meta_inputnode,
                 dwi_model_emc_wf,
-                [("outputnode.dwi_mask",
+                [("b0_mask",
                   "dwi_model_emc_inputnode.b0_mask")],
             ),
             (
@@ -959,10 +932,10 @@ def init_emc_wf(name, mem_gb=3, omp_nthreads=8):
             ),
             (vectors_node, match_transforms_hmc_node,
              [("b0_ixs", "b0_indices")]),
-            (patch2self_node, mask_4d_node,
-             [("out_file", "dwi_file")]),
-            (dwi_reference_wf, mask_4d_node,
-             [("outputnode.dwi_mask", "mask_file")]),
+            (meta_inputnode, mask_4d_node,
+             [("dwi_file", "dwi_file")]),
+            (meta_inputnode, mask_4d_node,
+             [("b0_mask", "mask_file")]),
             (mask_4d_node, split_dwis_masked_node,
              [("dwi_masked", "in_file")]),
             (split_dwis_masked_node, match_transforms_hmc_node,
@@ -979,9 +952,9 @@ def init_emc_wf(name, mem_gb=3, omp_nthreads=8):
                 [("output_average_image", "in_file")],
             ),
             (
-                dwi_reference_wf,
+                meta_inputnode,
                 apply_mask_to_predicted,
-                [("outputnode.dwi_mask", "in_mask")],
+                [("b0_mask", "in_mask")],
             ),
             (
                 apply_mask_to_predicted,
