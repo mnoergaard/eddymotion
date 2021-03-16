@@ -3,8 +3,8 @@ Core workflow
 """
 
 import nipype.pipeline.engine as pe
-from nipype.interfaces import utility as niu, afni, ants
-from dmriprep.interfaces.images import ExtractB0, RescaleB0
+from nipype.interfaces import utility as niu
+from dmriprep.interfaces.images import ExtractB0
 from emc.interfaces.model import SignalPrediction
 from emc.interfaces.images import (
     CalculateCNR,
@@ -346,7 +346,8 @@ def init_emc_model_iteration_wf(
             (
                 emc_model_iteration_inputnode,
                 post_vector_transforms,
-                [("aligned_vectors", "rasb_file"), ("b0_reference", "dwi_file")],
+                [("aligned_vectors", "rasb_file"),
+                 ("b0_reference", "dwi_file")],
             ),
             (
                 predict_dwis,
@@ -431,7 +432,8 @@ def init_dwi_model_emc_wf(num_iters=1, name="dwi_model_emc_wf"):
                         "original_rasb_file",
                         "emc_model_iteration_inputnode.original_rasb_file",
                     ),
-                    ("b0_reference", "emc_model_iteration_inputnode.b0_reference"),
+                    ("b0_reference",
+                     "emc_model_iteration_inputnode.b0_reference"),
                     ("b0_mask", "emc_model_iteration_inputnode.b0_mask"),
                     ("b0_indices", "emc_model_iteration_inputnode.b0_indices"),
                     (
@@ -728,7 +730,7 @@ def init_emc_wf(name):
                                       name="apply_mask_to_predicted_node")
 
     match_transforms_hmc_node = pe.Node(MatchTransforms(),
-                                    name="match_transforms_hmc_node")
+                                        name="match_transforms_hmc_node")
 
     mask_4d_node = pe.Node(
         niu.Function(
