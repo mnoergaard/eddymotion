@@ -15,7 +15,7 @@ def _data_repr(value):
 
 
 @attr.s(slots=True)
-class DWI:
+class PET:
     """Data representation structure for dMRI data."""
 
     dataobj = attr.ib(default=None, repr=_data_repr)
