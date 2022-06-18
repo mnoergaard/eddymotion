@@ -30,15 +30,11 @@ class PET:
     If the :math:`B_0` fieldmap is set, this *b=0* reference map should also
     be unwarped.
     """
-    gradients = attr.ib(default=None, repr=_data_repr)
-    """A 2D numpy array of the gradient table in RAS+B format."""
     em_affines = attr.ib(default=None)
     """
     List of :obj:`nitransforms.linear.Affine` objects that bring
     DWIs (i.e., no b=0) into alignment.
     """
-    fieldmap = attr.ib(default=None, repr=_data_repr)
-    """A 3D displacements field to unwarp susceptibility distortions."""
     _filepath = attr.ib(default=Path(mkdtemp()) / "em_cache.h5", repr=False)
     """A path to an HDF5 file to store the whole dataset."""
 
