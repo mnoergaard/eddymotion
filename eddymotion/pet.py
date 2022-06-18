@@ -4,7 +4,6 @@ from collections import namedtuple
 from tempfile import mkdtemp
 import attr
 import numpy as np
-import h5py
 import nibabel as nb
 from nitransforms.linear import Affine
 
