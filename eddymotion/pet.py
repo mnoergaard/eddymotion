@@ -193,35 +193,17 @@ class PET:
 
 
 def load(
-    filename, gradients_file=None, b0_file=None, brainmask_file=None, fmap_file=None
+    filename, brainmask_file=None,
 ):
-    """Load DWI data."""
-    filename = Path(filename)
-    if filename.name.endswith(".h5"):
-        return DWI.from_filename(filename)
-
-    if not gradients_file:
-        raise RuntimeError("A gradients file is necessary")
-
     img = nb.as_closest_canonical(nb.load(filename))
-    retval = DWI(
+    retval = PET(
         affine=img.affine,
     )
-    grad = np.loadtxt(gradients_file, dtype="float32").T
-    gradmsk = grad[-1] > 50
-    retval.gradients = grad[..., gradmsk]
-    retval.dataobj = img.get_fdata(dtype="float32")[..., gradmsk]
 
-    if b0_file:
-        b0img = nb.as_closest_canonical(nb.load(b0_file))
-        retval.bzero = np.asanyarray(b0img.dataobj)
+    retval.dataobj = img.get_fdata(dtype="float32")
 
     if brainmask_file:
         mask = nb.as_closest_canonical(nb.load(brainmask_file))
         retval.brainmask = np.asanyarray(mask.dataobj)
-
-    if fmap_file:
-        fmapimg = nb.as_closest_canonical(nb.load(fmap_file))
-        retval.fieldmap = fmapimg.get_fdata(fmapimg, dtype="float32")
 
     return retval
