@@ -221,7 +221,7 @@ def load(
         affine=img.affine,
     )
     grad = np.loadtxt(gradients_file, dtype="float32").T
-    gradmsk = grad[-1] > 50
+    gradmsk = grad[-1] > 0
     retval.gradients = grad[..., gradmsk]
     retval.dataobj = img.get_fdata(dtype="float32")[..., gradmsk]
 
