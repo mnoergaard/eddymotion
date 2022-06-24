@@ -413,23 +413,8 @@ class AveragePETModel:
     def fit(self, data, **kwargs):
         """Calculate the average."""
         # Select the interval of b-values for which DWIs will be averaged
-        b_mask = (self._gtab[3, ...] >= self._th_low) & (
-            self._gtab[3, ...] <= self._th_high
-        )
-        shells = data[..., b_mask]
-
-        # Regress out global signal differences
-        if self._bias:
-            centers = np.median(shells, axis=(0, 1, 2))
-            reference = np.percentile(centers[centers >= 1.0], 75)
-            centers[centers < 1.0] = reference
-            drift = reference / centers
-            shells = shells * drift
-
-        # Select the summary statistic
-        avg_func = np.median if self._stat == "median" else np.mean
-        # Calculate the average
-        self._data = avg_func(shells, axis=-1)
+        self._data = np.mean(data, axis=-1)
+        
 
     def predict(self, gradient, **kwargs):
         """Return the average map."""
