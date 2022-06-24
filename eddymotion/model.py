@@ -413,7 +413,10 @@ class AveragePETModel:
     def fit(self, data, **kwargs):
         """Calculate the average."""
         # Select the interval of b-values for which DWIs will be averaged
-        self._data = np.mean(data, axis=-1)
+        
+        tmp = np.percentile(data, 20, axis=(0,1,2))
+        print(tmp)
+        self._data = np.mean(data, where = data > tmp, axis=-1)
         
 
     def predict(self, gradient, **kwargs):
